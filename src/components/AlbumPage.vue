@@ -6,12 +6,12 @@
                     <v-text-field v-model="search" class="font-weight-bold" color="black" style="width: 70%;font-family: Poppins; font-size: 20px; font-style:bold; border-radius: 10px;" rounded append-icon="mdi-magnify" outlined placeholder="Search..." hide-details></v-text-field>
                 </v-col>
                 <v-col>
-                    <v-btn class="font-weight-bold" style="margin:10px auto;font-family: Poppins; font-size: 20px; text-transform: capitalize; float:right; color: #F7CACA" x-large color="#93A9D1" @click="dialog = true">New Merchandise</v-btn>
+                    <v-btn class="font-weight-bold" style="margin:10px auto;font-family: Poppins; font-size: 20px; text-transform: capitalize; float:right; color: #F7CACA" x-large color="#93A9D1" @click="dialog = true">New Album</v-btn>
                 </v-col>
             </v-row>
         </v-card>
         <v-card elevation="3" style="border-radius: 6px;" class="mt-5 mx-6">
-            <v-data-table :headers="headers" :items="merchandises" :search="search" :items-per-page="10">
+            <v-data-table :headers="headers" :items="albums" :search="search" :items-per-page="10">
                 <template v-slot:[`item.actions`]="{ item }">
                     <v-icon  color="green darken-2" class="mr-2" @click="editData(item)">mdi-pencil</v-icon>
                     <v-icon  color="red" @click="selectedId = item.id; dialogConfirm = true"> mdi-delete </v-icon>
@@ -28,11 +28,44 @@
                 <v-card-text class="pb-0">
                     <v-container> 
                         <v-form ref="form">
-                            <v-text-field outlined color="black" class="textfield mt-3"  v-model="form.merchandise" label="Merchandise Name" required :rules="inputRules"></v-text-field>
+                            <v-text-field outlined color="black" class="textfield mt-3"  v-model="form.album" label="Album Name" required :rules="inputRules"></v-text-field>
                             <v-text-field outlined color="black" class="textfield mt-3"  v-model="form.artist" label="Artist Name" required :rules="inputRules"></v-text-field>
-                            <v-text-field outlined color="black" class="textfield"  v-model="form.price" label="Price" :rules="inputRules" prefix="Rp" type="numeric"></v-text-field>
-                            <v-text-field outlined color="black" class="textfield"  v-model="form.stock" label="Stock" :rules="inputRules" type="numeric"></v-text-field>
-                            <v-text-field outlined color="black" class="textfield"  v-model="form.package" label="Packaging" :rules="inputRules"></v-text-field>
+
+                            <v-select
+                                outlined color="black"
+                                v-model="form.agency"
+                                :items="agency"
+                                :rules="inputRules"
+                                label="Agency"
+                            ></v-select>
+
+                            <v-menu
+                            v-model="menu2"
+                            :close-on-content-click="false"
+                            :nudge-right="40"
+                            transition="scale-transition"
+                            offset-y
+                            min-width="auto"
+                        >
+                            <template v-slot:activator="{ on, attrs }">
+                            <v-text-field
+                                outlined color="black"
+                                v-model="form.release"
+                                label="Release"
+                                readonly
+                                v-bind="attrs"
+                                v-on="on"
+                            ></v-text-field>
+                            </template>
+                            <v-date-picker
+                            v-model="form.release"
+                            @input="menu2 = false"
+                            ></v-date-picker>
+                        </v-menu>
+
+
+                            <v-text-field outlined color="black" class="textfield mt-3"  v-model="form.price" label="Price" :rules="inputRules" prefix="Rp" type="numeric"></v-text-field>
+                            <v-text-field outlined color="black" class="textfield mt-3"  v-model="form.stock" label="Stock" :rules="inputRules" type="numeric"></v-text-field>
                         </v-form>
                     </v-container> 
                 </v-card-text>
@@ -102,7 +135,7 @@ import { db } from '../firebase';
 import {ref,set,remove,get,push,onValue} from '@firebase/database'
 
 export default {
-    name: "MerchandisePage",
+    name: "AlbumPage",
     data () {
         return {
             load: false,
@@ -112,11 +145,12 @@ export default {
             error_message: '',
             color: '',
             headers: [
-                {text: "Merchandies Name", value: "merchandise"},
-                {text: "Artist Name", value: "artist"},
+                {text: "Album Name", value: "album"},
+                {text: "Artist ", value: "artist"},
+                {text: "Release", value: "release"},
+                {text: "Agency", value: "agency"},
                 {text: "Price", value: "price"},
                 {text: "Stock", value: "stock"},
-                {text: "Packaging", value: "package"},
                 {text: "", value: "actions"},
             ],
             type:[
@@ -124,19 +158,22 @@ export default {
                 'Cool',
                 'Cold',
             ],
+            agency : ['SM', 'JYP', 'HYBE', 'YG'],
             inputRules: [
                 (v) => !!v || 'Must be filled!',
             ],
-            merchandise : new FormData,
-            merchandises: [],
+            album : new FormData,
+            albums: [],
             dialog: false,
+            menu2: false,
             dialogConfirm: false,
             form: {
-                merchandise: '',
+                album: '',
                 artist: '',
+                release: '',
+                agency: '',
                 price: '',
                 stock: '',
-                package: ''
             },
             formType: 0,
             selectedId: ''
@@ -145,16 +182,17 @@ export default {
 
     created() {
         // tambahkan fungsi untuk retrieve data
-        onValue(ref(db, 'merchandises'), (snapshot) => {
-            this.merchandises = [],
-            snapshot.forEach((merchandise) => {
-                this.merchandises.push({
-                    id: merchandise.key,
-                    merchandise: merchandise.val().merchandise,
-                    artist: merchandise.val().artist,
-                    price: merchandise.val().price,
-                    stock: merchandise.val().stock,
-                    package: merchandise.val().package
+        onValue(ref(db, 'albums'), (snapshot) => {
+            this.albums = [],
+            snapshot.forEach((album) => {
+                this.albums.push({
+                    id: album.key,
+                    album: album.val().album,
+                    artist: album.val().artist,
+                    release: album.val().release,
+                    agency: album.val().agency,
+                    price: album.val().price,
+                    stock: album.val().stock,
                 });
             })
         })
@@ -166,7 +204,7 @@ export default {
             //tambahkan fungsi untuk create dan update data
             if (this.formType == -1) {
 
-                set(ref(db, 'merchandises/' + this.selectedId), this.form)
+                set(ref(db, 'albums/' + this.selectedId), this.form)
                 .then(() => {
                     this.snackbar = true;
                     this.error_message = 'Update Data Success!';
@@ -179,7 +217,7 @@ export default {
                     this.closeDialog();
                 })
             } else {
-                push(ref(db, 'merchandises'), this.form)
+                push(ref(db, 'albums'), this.form)
                 .then(() => {
                     this.snackbar = true;
                     this.error_message = 'Add Data Success!';
@@ -204,7 +242,7 @@ export default {
 
         deleteData() {
             //tambahkan fungsi untuk delete data
-            remove(ref(db, 'merchandises/' + this.selectedId))
+            remove(ref(db, 'albums/' + this.selectedId))
             .then(() => {
                 this.dialogConfirm = false;
                 this.snackbar = true;
@@ -231,7 +269,7 @@ export default {
 
     computed: {
         formTitle() {
-            return this.formType === 0 ? "Create Merchandise" : "Update Merchandise";
+            return this.formType === 0 ? "Create Album" : "Update Album";
         },
     },
 }
